@@ -49,21 +49,6 @@ library(broom)
 
 nhs <- read_sas("nhs.sas7bdat")
 
-vars <- c(
-  "cokh_serv", "cokr_serv", "brwn_serv", "donut_serv",
-  "cakh_serv", "cakr_serv", "srolh_serv", "srolr_serv",
-  "pieh_serv", "pier_serv"
-)
-
-nhs <- nhs %>%
-  group_by(id) %>%
-  filter(!any(if_any(all_of(vars), is.na))) %>%
-  ungroup()
-
-nhs$brdo_serv <- nhs$brwn_serv + nhs$donut_serv
-nhs$swtr_serv <- nhs$srolr_serv + nhs$srolh_serv
-nhs$pie_serv  <- nhs$pieh_serv + nhs$pier_serv
-
 fd <- c(
   "procm_serv","rmeat_serv","liver_serv","seaf_serv",
   "sseaf_serv","poul_serv","eggs_serv","butter_serv",
@@ -82,47 +67,6 @@ fd <- c(
   "cakh_serv", "cakr_serv","cond_serv",
   "saldre_serv","crsoup_serv","pizza_serv"
 )
-
-summary(nhs[fd])
-
-zero_vals <- colMeans(nhs[fd] == 0, na.rm = TRUE)
-
-zero_table <- data.frame(
-  Food_Item = names(zero_vals),
-  Proportion = as.numeric(zero_vals),
-  Percentage = paste0(round(zero_vals * 100, 2), "%")
-)
-
-zero_table <- zero_table[order(zero_table$Proportion, decreasing = TRUE), ]
-rownames(zero_table) <- NULL
-
-head(zero_table)
-
-process_variable <- function(x, lower_p = 0.01, upper_p = 0.99) {
-  median_val <- median(x, na.rm = TRUE)
-  
-  x <- ifelse(is.na(x), median_val, x)
-  
-  lower_bound <- quantile(x, probs = lower_p, na.rm = TRUE)
-  upper_bound <- quantile(x, probs = upper_p, na.rm = TRUE)
-  
-  x <- ifelse(x < lower_bound | x > upper_bound, median_val, x)
-  
-  return(x)
-}
-
-vars_to_process <- c("bmicon", "actcon", "alcocon")
-
-summary(nhs[vars_to_process])
-
-for (var in vars_to_process) {
-  if (var %in% names(nhs)) {
-    nhs[[var]] <- process_variable(nhs[[var]])
-  }
-}
-
-summary(nhs[vars_to_process])
-
 nhs <- nhs %>%
   group_by(interval) %>%
   mutate(
@@ -142,11 +86,6 @@ nhs <- nhs %>%
   mutate(actbase = actcon[interval == 1][1]) %>%
   mutate(alcobase = alcocon[interval == 1][1]) %>%
   ungroup()
-
-table(nhs$interval)
-
-summary(nhs[food_vars_log_z])
-
 nhs <- nhs %>%
   mutate(
     bmi_cat = cut(
